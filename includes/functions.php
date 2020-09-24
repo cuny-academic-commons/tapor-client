@@ -19,7 +19,7 @@ function tapor_add_non_persistent_caching_group() {
  */
 function tapor_register_assets() {
 	wp_register_style( 'tapor-client', TAPOR_PLUGIN_URL . 'assets/css/screen.css' );
-	wp_register_script( 'tapor-client', TAPOR_PLUGIN_URL . 'assets/js/ddc.js', array( 'jquery' ) );
+	wp_register_script( 'tapor-client', TAPOR_PLUGIN_URL . 'assets/js/tapor.js', [ 'jquery' ] );
 
 	wp_localize_script( 'tapor-client', 'DDC', array(
 		'add_gloss'    => __( 'Click to show that you use this tool', 'tapor-client' ),
@@ -170,7 +170,7 @@ function tapor_get_tools( $args = array() ) {
 		if ( false !== $r['user_id'] ) {
 			$query_args['tax_query'][] = array(
 				'taxonomy' => 'tapor_used_by_user',
-//				'terms' => ddc_get_user_term( $r['user_id'] ),
+				'terms' => tapor_get_user_term( $r['user_id'] ),
 				'field' => 'slug',
 			);
 		}
@@ -346,23 +346,17 @@ function tapor_tool_markup( $tool_data ) {
 		$tool_id = $tool->ID;
 	}
 
-	if ( $tool_data['thumbnail'] && 'dirt_logo_default.png' !== $tool_data['thumbnail'] ) {
-		$image_url = DDC_IMAGE_BASE . 'styles/thumbnail/public/logos/' . $tool_data['thumbnail'];
-	} else {
-		$image_url = str_replace( 'public://', DDC_IMAGE_BASE, $tool_data['image'] );
-	}
-
 	$local_tool_url = '';
 	if ( $tool ) {
 		$local_tool_url = get_permalink( $tool );
 	}
 
 	$img_tag = '';
-	if ( $image_url ) {
+	if ( ! empty( $tool_data['image'] ) ) {
 		$img_tag = sprintf(
 			'<a href="%s"><img src="%s" /></a>',
 			$local_tool_url ? esc_attr( $local_tool_url ) : esc_attr( $tool_data['link'] ),
-			esc_attr( $image_url )
+			esc_attr( $tool_data['image'] )
 		);
 	}
 
@@ -389,7 +383,7 @@ function tapor_tool_markup( $tool_data ) {
 
 	$used_by_group_members = array();
 	if ( function_exists( 'bp_is_group' ) && bp_is_group() ) {
-		$used_by_group_members = ddc_get_users_of_tool( $tool->ID, array(
+		$used_by_group_members = tapor_get_users_of_tool( $tool->ID, array(
 			'count' => false,
 			'group_id' => bp_get_current_group_id(),
 		) );
@@ -447,7 +441,7 @@ function tapor_tool_markup( $tool_data ) {
 			$used_by_list_items[] = sprintf(
 				'<span class="taportool-user tapor-tool-user-%d"><a href="%s">%s</a></span>',
 				$used_by_user_id,
-				bp_core_get_user_domain( $used_by_user_id ) . ddc_get_slug() . '/',
+				bp_core_get_user_domain( $used_by_user_id ) . tapor_get_slug() . '/',
 				bp_core_get_user_displayname( $used_by_user_id )
 			);
 		}
@@ -460,7 +454,7 @@ function tapor_tool_markup( $tool_data ) {
 				$local_tool_url . '#users'
 			);
 		} else if ( ! empty( $used_by_list_items ) ) {
-			$total_user_count = ddc_get_users_of_tool( $tool_id, array(
+			$total_user_count = tapor_get_users_of_tool( $tool_id, array(
 				'fields' => 'count',
 			) );
 
@@ -514,7 +508,7 @@ function tapor_get_tool( $by, $value ) {
 		case 'node_id' :
 		case 'link' :
 			$posts = new WP_Query( array(
-				'post_type' => 'ddc_tool',
+				'post_type' => 'tapor_tool',
 				'post_status' => 'publish',
 				'meta_query' => array(
 					array(
@@ -534,7 +528,7 @@ function tapor_get_tool( $by, $value ) {
 		case 'title' :
 			// No way to do this in the API
 			global $wpdb;
-			$post_id = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'ddc_tool' AND post_status = 'publish' AND post_title = %s LIMIT 1", $value ) );
+			$post_id = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'tapor_tool' AND post_status = 'publish' AND post_title = %s LIMIT 1", $value ) );
 
 			if ( $post_id ) {
 				$tool = get_post( $post_id );
@@ -569,9 +563,9 @@ function tapor_get_action_checkbox( $tool_id, $tool_node_id = '' ) {
 			$button = sprintf(
 				'<div class="tapor-tool-action dirt-tool-action-remove"><label for="tapor-tool-remove-%1$d" class="tapor-tool-action-label"><a href="%2$s">' . __( 'I use this', 'tapor-client' ) . '</a></label> <input checked="checked" type="checkbox" value="%d" name="tapor-tool-remove[%1$d]" id="tapor-tool-remove-%1$d" data-tool-id="%1$d" data-tool-node-id="%5$d" data-nonce="%4$s"><span class="tapor-tool-action-question tapor-tool-action-question-remove">%3$s</span></div>',
 				$tool_id,
-				wp_nonce_url( $url_base, 'ddc_remove_tool' ),
+				wp_nonce_url( $url_base, 'tapor_remove_tool' ),
 				__( 'Click to remove this tool from your list', 'tapor-client' ),
-				wp_create_nonce( 'ddc_toggle_tool_' . $tool_node_id ),
+				wp_create_nonce( 'tapor_toggle_tool_' . $tool_node_id ),
 				$tool_node_id
 			);
 		} else {
@@ -579,9 +573,9 @@ function tapor_get_action_checkbox( $tool_id, $tool_node_id = '' ) {
 			$button = sprintf(
 				'<div class="tapor-tool-action tapor-tool-action-add"><label for="tapor-tool-add-%1$d" class="tapor-tool-action-label"><a href="%2$s">' . __( 'I use this', 'tapor-client' ) . '</a></label> <input type="checkbox" value="%d" name="tapor-tool-add[%1$d]" id="tapor-tool-add-%1$d" data-tool-id="%1$d" data-tool-node-id="%5$d" data-nonce="%4$s"><span class="tapor-tool-action-question tapor-tool-action-question-add">%3$s</span></div>',
 				$tool_id,
-				wp_nonce_url( $url_base, 'ddc_add_tool' ),
+				wp_nonce_url( $url_base, 'tapor_add_tool' ),
 				__( 'Click to show that you use this tool', 'tapor-client' ),
-				wp_create_nonce( 'ddc_toggle_tool_' . $tool_node_id ),
+				wp_create_nonce( 'tapor_toggle_tool_' . $tool_node_id ),
 				$tool_node_id
 			);
 		}

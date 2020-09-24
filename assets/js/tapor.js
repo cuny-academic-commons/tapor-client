@@ -74,7 +74,7 @@ window.wp = window.wp || {};
 					method: 'GET',
 					data: {
 						'tool_id': tool_id,
-						'action': 'ddc_tool_use_toggle',
+						'action': 'tapor_tool_use_toggle',
 						'tool_node_id': $current_checkbox.data( 'tool-node-id' ),
 						'nonce': $current_checkbox.data( 'nonce' ),
 						'toggle': checked ? 'remove' : 'add'

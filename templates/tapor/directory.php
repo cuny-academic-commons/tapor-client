@@ -51,7 +51,7 @@ $used_tools = tapor_get_tools( $used_tool_args );
 	<a name="local-results"> </a>
 	<ul class="tapor-tools">
 	<?php foreach ( $used_tools as $used_tool ) : ?>
-		<li><?php echo ddc_tool_markup( array(
+		<li><?php echo tapor_tool_markup( array(
 			'link' => $used_tool->dirt_link,
 			'title' => $used_tool->post_title,
 			'node_id' => $used_tool->dirt_node_id,

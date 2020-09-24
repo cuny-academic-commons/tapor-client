@@ -59,11 +59,11 @@ class ThemeCompat {
 	public function directory_dummy_post() {
 		bp_theme_compat_reset_post( array(
 			'ID'             => 0,
-			'post_title'     => __( 'Digital Research Tools', 'dirt-directory-client' ),
+			'post_title'     => __( 'Digital Research Tools', 'tapor-client' ),
 			'post_author'    => 0,
 			'post_date'      => 0,
 			'post_content'   => '',
-			'post_type'      => 'ddc_tool',
+			'post_type'      => 'tapor_tool',
 			'post_status'    => 'publish',
 			'is_archive'     => true,
 			'comment_status' => 'closed'
@@ -127,12 +127,12 @@ class ThemeCompat {
 	 * Loaded late on 'template_include' to ensure that BP has had a chance to run its main theme compatibility logic.
 	 *
 	 * @since 1.0.0
-	 * @see ddc_template_include()
+	 * @see template_include()
 	 *
 	 * @param string $template Template location found by WordPress.
 	 * @return string
 	 */
-	function template_include_2( $template ) {
+	public function template_include_2( $template ) {
 		if ( ! bp_use_theme_compat_with_current_theme() ) {
 			return $template;
 		}
