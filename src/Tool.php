@@ -41,7 +41,12 @@ class Tool {
 			$tool->set_image( $image );
 
 			$categories = get_the_terms( $id, tapor_app()->schema::category_taxonomy() );
-			$tool->set_categories( wp_list_pluck( $categories, 'name' ) );
+			if ( $categories ) {
+				$cat_names = wp_list_pluck( $categories, 'name' );
+			} else {
+				$cat_names = [];
+			}
+			$tool->set_categories( $cat_names );
 		}
 
 		return $tool;
@@ -222,7 +227,7 @@ class Tool {
 			foreach ( $group_ids as $group_id ) {
 				$group_members = wp_cache_get( $group_id, 'ddc_bp_group_members' );
 				if ( false === $group_members ) {
-					$group_member_query = new BP_Group_Member_Query( array(
+					$group_member_query = new \BP_Group_Member_Query( array(
 						'group_id'   => $args['group_id'],
 						'type'       => 'alphabetical',
 						'group_role' => array( 'admin', 'mod', 'member' ),

@@ -187,11 +187,18 @@ function tapor_get_tools( $args = array() ) {
 			$query_args['order'] = 'DESC';
 		}
 
-		// @todo support for multiple users
 		if ( false !== $r['user_id'] ) {
+			if ( ! is_array( $r['user_id'] ) ) {
+				$user_ids = [ (int) $r['user_id'] ];
+			} else {
+				$user_ids = array_map( 'intval', $r['user_id'] );
+			}
+
+			$terms = array_map( 'tapor_get_user_term', $user_ids );
+
 			$query_args['tax_query'][] = array(
 				'taxonomy' => tapor_app()->schema::used_by_taxonomy(),
-				'terms' => tapor_get_user_term( $r['user_id'] ),
+				'terms' => $terms,
 				'field' => 'slug',
 			);
 		}
@@ -227,7 +234,8 @@ function tapor_get_tools( $args = array() ) {
 
 	$tools = array_map(
 		function( $tool_id ) {
-			return \CAC\TAPoR\Tool::get_instance_by_id( $tool_id );
+			$the_tool =  \CAC\TAPoR\Tool::get_instance_by_id( $tool_id );
+			return $the_tool;
 		},
 		$tool_ids
 	);
@@ -415,11 +423,13 @@ function tapor_tool_markup( $tool_data ) {
 	);
 
 	$used_by_group_members = array();
-	if ( function_exists( 'bp_is_group' ) && bp_is_group() ) {
-		$used_by_group_members = tapor_get_users_of_tool( $tool->ID, array(
-			'count' => false,
-			'group_id' => bp_get_current_group_id(),
-		) );
+	if ( function_exists( 'bp_is_group' ) && bp_is_group() && $tool ) {
+		$used_by_group_members = $tool->get_users_of_tool(
+			[
+				'count' => false,
+				'group_id' => bp_get_current_group_id(),
+			]
+		);
 	}
 
 	$exclude = false;
@@ -651,11 +661,71 @@ function tapor_get_action_checkbox( $tool_id, $tool_tapor_id = '' ) {
  *
  * @since 1.0.0
  *
- * @param int   $user_id ID of the user.
- * @param array $args    See {@see tapor_get_tools()} for a description.
+ * @param int|array $user_id ID of the user.
+ * @param array     $args    See {@see tapor_get_tools()} for a description.
  * @return array
  */
 function tapor_get_tools_of_user( $user_id, $args = array() ) {
 	$args['user_id'] = $user_id;
 	return tapor_get_tools( $args );
+}
+
+/**
+ * Get tools of a given group.
+ *
+ * @since 1.0.0
+ *
+ * @param int   $group_id ID of the user.
+ * @param array $args     See {@see tapor_get_tools()} for a description.
+ * @return array
+ */
+function tapor_get_group_of_user( $group_id, $args = array() ) {
+	$args['user_id'] = $user_id;
+	return tapor_get_tools( $args );
+}
+
+/**
+ * Get tools in use by a group.
+ *
+ * @param int $group_id Optional. Group ID. Default: current group ID.
+ * @return array
+ */
+function tapor_get_tools_used_by_group( $group_id = null ) {
+	if ( is_null( $group_id ) && bp_is_group() ) {
+		$group_id = bp_get_current_group_id();
+	}
+
+	$group_members = wp_cache_get( $group_id, 'tapor_bp_group_members' );
+	if ( false === $group_members ) {
+		$group_member_query = new BP_Group_Member_Query(
+			[
+				'group_id'   => $group_id,
+				'type'       => 'alphabetical',
+				'group_role' => array( 'admin', 'mod', 'member' ),
+			]
+		);
+		$group_members = wp_list_pluck( $group_member_query->results, 'user_id' );
+
+		wp_cache_add( $group_id, $group_members, 'tapor_bp_group_members' );
+	}
+
+	return tapor_get_tools( [ 'user_id' => $group_members ] );
+
+	$group_member_tools = array();
+	foreach ( $group_members as $group_member ) {
+		$gm_tools = tapor_get_tools_of_user( $group_member->ID );
+		foreach ( $gm_tools as $gm_tool ) {
+			if ( ! isset( $group_member_tools[ $gm_tool->get_id() ] ) ) {
+				$group_member_tools[ $gm_tool->get_id() ] = $gm_tool;
+			}
+
+			if ( ! isset( $group_member_tools[ $gm_tool->get_id() ]->users_of_tool ) ) {
+				$group_member_tools[ $gm_tool->get_id() ]->users_of_tool = array();
+			}
+
+			$group_member_tools[ $gm_tool->ID ]->users_of_tool[] = $group_member->ID;
+		}
+	}
+
+	return $group_member_tools;
 }
