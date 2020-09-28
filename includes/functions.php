@@ -389,7 +389,7 @@ function tapor_tool_markup( $tool_data ) {
 
 	$local_tool_url = '';
 	if ( $tool ) {
-		$local_tool_url = get_permalink( $tool );
+		$local_tool_url = get_permalink( $tool->get_id() );
 	}
 
 	$img_tag = '';
