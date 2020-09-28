@@ -157,6 +157,18 @@ class Client {
 	}
 
 	/**
+	 * Get a tool's attributes.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param int $id ID of the tool on TAPoR.
+	 * @return mixed
+	 */
+	public function get_attributes_for_tool( $id ) {
+		return $this->set_endpoint( 'tools/' . $id . '/attributes/' )->request();
+	}
+
+	/**
 	 * Get a list of the items (nodes/tools) that match a given taxonomy term.
 	 *
 	 * @todo Is broken

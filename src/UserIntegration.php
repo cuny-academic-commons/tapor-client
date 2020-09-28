@@ -59,7 +59,27 @@ class UserIntegration {
 					$tool_obj->set_description( $_tool['description'] );
 					$tool_obj->set_image( $_tool['image'] );
 					$tool_obj->set_link( $_tool['link'] );
-					// todo categories
+
+					$categories      = [];
+					$tool_attributes = tapor_app()->get_client()->get_attributes_for_tool( $data['tapor_id'] );
+					if ( $tool_attributes ) {
+						foreach ( $tool_attributes as $attribute_type ) {
+							if ( 'Type of analysis' === $attribute_type->name ) {
+								foreach ( $attribute_type->selected as $selected ) {
+									foreach ( $attribute_type->attribute_values as $attribute_value ) {
+										if ( $attribute_value->id === $selected->id ) {
+											$categories[] = $attribute_value->name;
+											break;
+										}
+									}
+								}
+
+								break;
+							}
+						}
+					}
+
+					$tool_obj->set_categories( $categories );
 
 					$saved = $tool_obj->save();
 

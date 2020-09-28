@@ -40,8 +40,8 @@ class Tool {
 			$image = get_post_meta( $id, 'tapor_image', true );
 			$tool->set_image( $image );
 
-
-			// todo categories
+			$categories = get_the_terms( $id, tapor_app()->schema::category_taxonomy() );
+			$tool->set_categories( wp_list_pluck( $categories, 'name' ) );
 		}
 
 		return $tool;
@@ -101,7 +101,8 @@ class Tool {
 			update_post_meta( $id, 'tapor_link', $this->get_link() );
 			update_post_meta( $id, 'tapor_id', $this->get_tapor_id() );
 			update_post_meta( $id, 'tapor_image', $this->get_image() );
-			//wp_set_object_terms( $tool_id, $r['categories'], 'ddc_tool_category' );
+
+			wp_set_object_terms( $id, $this->get_categories(), tapor_app()->schema::category_taxonomy() );
 		}
 
 		return $saved;
@@ -131,6 +132,10 @@ class Tool {
 		return $this->data['image'];
 	}
 
+	public function get_categories() {
+		return $this->data['categories'];
+	}
+
 	public function set_id( $id ) {
 		$this->data['id'] = (int) $id;
 	}
@@ -153,6 +158,10 @@ class Tool {
 
 	public function set_link( $link ) {
 		$this->data['link'] = $link;
+	}
+
+	public function set_categories( $categories ) {
+		$this->data['categories'] = $categories;
 	}
 
 	/**
