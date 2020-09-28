@@ -148,25 +148,29 @@ function tapor_categories() {
  * @return array Array of results (WP_Post objects).
  */
 function tapor_get_tools( $args = array() ) {
-	$r = array_merge( array(
-		'order'          => 'ASC',
-		'orderby'        => 'name',
-		'posts_per_page' => -1,
-		'user_id'        => false,
-		'search_terms'   => '',
-		'categories'     => array(), // By 'name'.
-	), $args );
+	$r = array_merge(
+		[
+			'order'          => 'ASC',
+			'orderby'        => 'name',
+			'posts_per_page' => -1,
+			'user_id'        => false,
+			'search_terms'   => '',
+			'categories'     => [], // By 'name'.
+		],
+		$args
+	);
 
 	$cache_key = md5( json_encode( $r ) );
-	$tools     = wp_cache_get( $cache_key, 'tapor_tools' );
+	$tool_ids  = wp_cache_get( $cache_key, 'tapor_tools' );
 
-	if ( false === $tools ) {
+	if ( false === $tool_ids ) {
 		$query_args = array(
-			'post_type'   => 'tapor_tool',
+			'post_type'   => tapor_app()->schema::post_type(),
 			'post_status' => 'publish',
-			'tax_query'   => array(),
+			'tax_query'   => [],
 			'orderby'     => 'name',
 			'order'       => 'ASC',
+			'fields'      => 'ids',
 		);
 
 		// posts_per_page
@@ -186,7 +190,7 @@ function tapor_get_tools( $args = array() ) {
 		// @todo support for multiple users
 		if ( false !== $r['user_id'] ) {
 			$query_args['tax_query'][] = array(
-				'taxonomy' => 'tapor_used_by_user',
+				'taxonomy' => tapor_app()->schema::used_by_taxonomy(),
 				'terms' => tapor_get_user_term( $r['user_id'] ),
 				'field' => 'slug',
 			);
@@ -196,16 +200,16 @@ function tapor_get_tools( $args = array() ) {
 			// Can't pass 'name' properly to tax query. Fixed in WP 4.2 - #WP27810.
 			$cat_ids = array();
 			foreach ( (array) $r['categories'] as $cat_name ) {
-				$_cat = get_term_by( 'name', $cat_name, 'tapor_category' );
+				$_cat = get_term_by( 'name', $cat_name, tapor_app()->schema::category_taxonomy() );
 				if ( $_cat ) {
 					$cat_ids[] = $_cat->term_id;
 				}
 			}
 
 			$query_args['tax_query'][] = array(
-				'taxonomy' => 'tapor_category',
-				'terms' => $cat_ids,
-				'field' => 'id',
+				'taxonomy' => tapor_app()->schema::category_taxonomy(),
+				'terms'    => $cat_ids,
+				'field'    => 'id',
 			);
 		}
 
@@ -216,18 +220,17 @@ function tapor_get_tools( $args = array() ) {
 
 		$tools_query = new WP_Query( $query_args );
 
-		// Add DiRT-specific info to post objects
-		foreach ( $tools_query->posts as &$post ) {
-			$post->tapor_id       = get_post_meta( $post->ID, 'tapor_id', true );
-			$post->dirt_link      = get_post_meta( $post->ID, 'tapor_link', true );
-			$post->dirt_thumbnail = get_post_meta( $post->ID, 'tapor_thumbnail', true );
-			$post->dirt_image     = get_post_meta( $post->ID, 'tapor_image', true );
-		}
+		$tool_ids = $tools_query->posts;
 
-		$tools = $tools_query->posts;
-
-		wp_cache_add( $cache_key, $tools, 'tapor_tools' );
+		wp_cache_add( $cache_key, $tool_ids, 'tapor_tools' );
 	}
+
+	$tools = array_map(
+		function( $tool_id ) {
+			return \CAC\TAPoR\Tool::get_instance_by_id( $tool_id );
+		},
+		$tool_ids
+	);
 
 	return $tools;
 }
@@ -373,7 +376,7 @@ function tapor_tool_markup( $tool_data ) {
 
 	$tool_id = false;
 	if ( $tool ) {
-		$tool_id = $tool->ID;
+		$tool_id = $tool->get_id();
 	}
 
 	$local_tool_url = '';
@@ -443,7 +446,7 @@ function tapor_tool_markup( $tool_data ) {
 	if ( ! empty( $tool_data['description'] ) ) {
 		$link = $tool_data['link'];
 		if ( ! $link ) {
-			$link = 'http://dirtdirectory.org/node/' . $tool_data['node_id'];
+			$link = 'http://tapor.ca/tools/' . $tool_data['tapor_id'];
 		}
 
 		$description  = strip_tags( trim( $tool_data['description'] ) );
@@ -593,15 +596,31 @@ function tapor_get_tool( $by, $value ) {
  * @return string
  */
 function tapor_get_action_checkbox( $tool_id, $tool_tapor_id = '' ) {
+	$tool_obj = null;
+	if ( $tool_id ) {
+		$tool_obj = \CAC\TAPoR\Tool::get_instance_by_id( $tool_id );
+	}
+
+	if ( ! $tool_obj && $tool_tapor_id ) {
+		$tool_obj = \CAC\TAPoR\Tool::get_instance_by_tapor_id( $tool_tapor_id );
+	}
+
+	if ( $tool_obj && ! $tool_tapor_id ) {
+		$tool_tapor_id = $tool_obj->get_tapor_id();
+	}
+
 	$url_base = bp_get_requested_url();
 	if ( is_user_logged_in() ) {
 		$my_tools = tapor_get_tools_of_user( get_current_user_id() );
 
-		if ( ! $tool_tapor_id ) {
-			$tool_tapor_id = get_post_meta( $tool_id, 'tapor_id', true );
-		}
+		$my_tool_ids = array_map(
+			function( $my_tool ) {
+				return $my_tool->get_id();
+			},
+			$my_tools
+		);
 
-		if ( in_array( $tool_id, wp_list_pluck( $my_tools, 'ID' ) ) ) {
+		if ( in_array( $tool_id, $my_tool_ids ) ) {
 			$url_base = add_query_arg( 'remove_dirt_tool', $tool_tapor_id );
 			$button = sprintf(
 				'<div class="tapor-tool-action dirt-tool-action-remove"><label for="tapor-tool-remove-%1$d" class="tapor-tool-action-label"><a href="%2$s">' . __( 'I use this', 'tapor-client' ) . '</a></label> <input checked="checked" type="checkbox" value="%d" name="tapor-tool-remove[%1$d]" id="tapor-tool-remove-%1$d" data-tool-id="%1$d" data-tapor-id="%5$d" data-nonce="%4$s"><span class="tapor-tool-action-question tapor-tool-action-question-remove">%3$s</span></div>',

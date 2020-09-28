@@ -65,10 +65,11 @@ class Tool {
 
 		if ( ! empty( $posts->posts ) ) {
 			$tool_id = $posts->posts[0];
-		}
 
-		if ( $tool_id ) {
-			return self::get_instance_by_id( $tool_id );
+			if ( $tool_id ) {
+				$instance = self::get_instance_by_id( $posts->posts[0] );
+				return $instance;
+			}
 		}
 
 		return null;
