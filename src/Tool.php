@@ -189,6 +189,40 @@ class Tool {
 	}
 
 	/**
+	 * Dissociate a tool from a user.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param int $tool_id ID of the tool.
+	 * @param int $user_id ID of the user.
+	 * @return bool
+	 */
+	public function dissociate_tool_from_user( $user_id ) {
+		$existing_terms = wp_get_object_terms(
+			$this->get_id(),
+			tapor_app()->schema::used_by_taxonomy(),
+			array(
+				'fields' => 'slugs',
+			)
+		);
+
+		$user_term = tapor_get_user_term( $user_id );
+
+		if ( ! in_array( $user_term, $existing_terms ) ) {
+			return false;
+		}
+
+		$new_terms = array_diff( $existing_terms, array( $user_term ) );
+
+		// Don't append - overwrite
+		wp_set_object_terms( $this->get_id(), $new_terms, tapor_app()->schema::used_by_taxonomy(), false );
+
+		do_action( 'tapor_dissociated_tool_from_user', $this, $user_id );
+
+		return true;
+	}
+
+	/**
 	 * Get users of a given tool.
 	 *
 	 * @since 1.0.0

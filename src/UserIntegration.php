@@ -99,7 +99,7 @@ class UserIntegration {
 
 		switch ( $data['toggle'] ) {
 			case 'remove' :
-				$removed = tapor_dissociate_tool_from_user( $tool->get_id(), bp_loggedin_user_id() );
+				$removed = $tool->dissociate_tool_from_user( bp_loggedin_user_id() );
 
 				if ( $removed ) {
 					$message = __( 'You have successfully removed this tool.', 'tapor-client' );
