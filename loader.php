@@ -34,5 +34,5 @@ function tapor_app() {
 }
 
 add_action( 'plugins_loaded', function() {
-	tapor_app()::init();
+	tapor_app()->init();
 } );

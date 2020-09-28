@@ -13,6 +13,19 @@ function tapor_add_non_persistent_caching_group() {
 }
 
 /**
+ * Get the slug used to build group/user tabs.
+ *
+ * Put into a separate function so that it can be abstracted at some point in the future.
+ *
+ * @since 1.0.0
+ *
+ * @return string
+ */
+function tapor_get_slug() {
+	return 'tapor';
+}
+
+/**
  * Register CSS and JS assets.
  *
  * @since 1.0.0
@@ -21,10 +34,14 @@ function tapor_register_assets() {
 	wp_register_style( 'tapor-client', TAPOR_PLUGIN_URL . 'assets/css/screen.css' );
 	wp_register_script( 'tapor-client', TAPOR_PLUGIN_URL . 'assets/js/tapor.js', [ 'jquery' ] );
 
-	wp_localize_script( 'tapor-client', 'DDC', array(
-		'add_gloss'    => __( 'Click to show that you use this tool', 'tapor-client' ),
-		'remove_gloss' => __( 'Click to remove this tool from your list', 'tapor-client' ),
-	) );
+	wp_localize_script(
+		'tapor-client',
+		'TAPoR',
+		[
+			'add_gloss'    => __( 'Click to show that you use this tool', 'tapor-client' ),
+			'remove_gloss' => __( 'Click to remove this tool from your list', 'tapor-client' ),
+		]
+	);
 }
 add_action( 'init', 'tapor_register_assets', 0 );
 
@@ -201,10 +218,10 @@ function tapor_get_tools( $args = array() ) {
 
 		// Add DiRT-specific info to post objects
 		foreach ( $tools_query->posts as &$post ) {
-			$post->dirt_node_id   = get_post_meta( $post->ID, 'dirt_node_id', true );
-			$post->dirt_link      = get_post_meta( $post->ID, 'dirt_link', true );
-			$post->dirt_thumbnail = get_post_meta( $post->ID, 'dirt_thumbnail', true );
-			$post->dirt_image     = get_post_meta( $post->ID, 'dirt_image', true );
+			$post->tapor_id       = get_post_meta( $post->ID, 'tapor_id', true );
+			$post->dirt_link      = get_post_meta( $post->ID, 'tapor_link', true );
+			$post->dirt_thumbnail = get_post_meta( $post->ID, 'tapor_thumbnail', true );
+			$post->dirt_image     = get_post_meta( $post->ID, 'tapor_image', true );
 		}
 
 		$tools = $tools_query->posts;
@@ -285,30 +302,31 @@ function tapor_parse_tool( $tool ) {
 	}
 
 	$retval = [
-		'title' => $tool->name,
-		'link' => TAPOR_URL . 'tools/' . $tool->id,
- 		'categories' => [],
-		'image' => TAPOR_URL . $tool->image_url,
+		'tapor_id'    => $tool->id,
+		'title'       => $tool->name,
+		'link'        => TAPOR_URL . 'tools/' . $tool->id,
+ 		'categories'  => [],
+		'image'       => TAPOR_URL . $tool->image_url,
 		'description' => $tool->detail,
 	];
 
-	$tapor_cats = tapor_categories();
-	$att_ids    = explode( '-', $tool->attribute_value_ids );
-	foreach ( $tool->attribute_value_ids as $att_id ) {
-		if ( empty( $att_id ) ) {
-			continue;
-		}
+	if ( isset( $tool->attribute_value_ids ) ) {
+		$tapor_cats = tapor_categories();
+		$att_ids    = explode( '-', $tool->attribute_value_ids );
+		foreach ( $att_ids as $att_id ) {
+			if ( empty( $att_id ) ) {
+				continue;
+			}
 
-		// Whee!
-		foreach ( $tapor_cats as $tapor_cat ) {
-			if ( $att_id == $tapor_cat['tid'] ) {
-				$retval['categories'][] = $tapor_cat['name'];
-				break;
+			// Whee!
+			foreach ( $tapor_cats as $tapor_cat ) {
+				if ( $att_id == $tapor_cat['tid'] ) {
+					$retval['categories'][] = $tapor_cat['name'];
+					break;
+				}
 			}
 		}
 	}
-	_b( $tool );
-	_b( $retval );
 
 	return $retval;
 }
@@ -326,6 +344,18 @@ function tapor_get_user_term( $user_id ) {
 }
 
 /**
+ * Get the user ID from a tapor_tool_is_used_by_user term slug.
+ *
+ * @since 1.0.0
+ * @param string $slug
+ * @return int
+ */
+function tapor_get_user_id_from_usedby_term_slug( $slug ) {
+	$user_id = substr( $slug, 27 );
+	return intval( $user_id );
+}
+
+/**
  * Generate the markup for a tool.
  *
  * @param array $args {
@@ -339,7 +369,7 @@ function tapor_get_user_term( $user_id ) {
 function tapor_tool_markup( $tool_data ) {
 	$html = '';
 
-	$tool = tapor_get_tool( 'node_id', $tool_data['node_id'] );
+	$tool = \CAC\TAPoR\Tool::get_instance_by_tapor_id( $tool_data['tapor_id'] );
 
 	$tool_id = false;
 	if ( $tool ) {
@@ -396,15 +426,17 @@ function tapor_tool_markup( $tool_data ) {
 
 	$used_by_users = array();
 	if ( $tool ) {
-		$used_by_users = tapor_get_users_of_tool( $tool->ID, array(
-			'count' => 3,
-			'exclude' => $exclude,
-		) );
+		$used_by_users = $tool->get_users_of_tool(
+			[
+				'count'   => 3,
+				'exclude' => $exclude,
+			]
+		);
 	}
 
 	// Action button
 	if ( is_user_logged_in() ) {
-		$html .= tapor_get_action_checkbox( $tool_id, $tool_data['node_id'] );
+		$html .= tapor_get_action_checkbox( $tool_id, $tool_data['tapor_id'] );
 	}
 
 	// Tool description
@@ -454,9 +486,7 @@ function tapor_tool_markup( $tool_data ) {
 				$local_tool_url . '#users'
 			);
 		} else if ( ! empty( $used_by_list_items ) ) {
-			$total_user_count = tapor_get_users_of_tool( $tool_id, array(
-				'fields' => 'count',
-			) );
+			$total_user_count = $tool->get_users_of_tool( [ 'fields' => 'count' ] );
 
 			$used_by_list_item_count = $total_user_count - 3;
 			if ( $used_by_list_item_count < 0 ) {
@@ -496,28 +526,41 @@ function tapor_tool_markup( $tool_data ) {
  *
  * @since 1.0.0
  *
- * @param string $by Field to query by. 'node_id', 'link', 'title'.
+ * @param string $by Field to query by. 'tapor_id', 'link', 'title'.
  * @param int|string $value Value to query by.
- * @return null|WP_Post
+ * @return null|Tool
  */
 function tapor_get_tool( $by, $value ) {
 	$tool = null;
 
 	switch ( $by ) {
+		case 'tapor_id' :
+//			$tool =
+		break;
+	}
+
+	switch ( $by ) {
 		// Postmeta
-		case 'node_id' :
+		case 'tapor_id' :
 		case 'link' :
-			$posts = new WP_Query( array(
-				'post_type' => 'tapor_tool',
-				'post_status' => 'publish',
-				'meta_query' => array(
-					array(
-						'key' => 'dirt_' . $by,
-						'value' => $value,
-					),
-				),
-				'posts_per_page' => 1,
-			) );
+			$meta_key = $by;
+			if ( 'link' === $meta_key ) {
+				$meta_key = 'tapor_link';
+			}
+
+			$posts = new WP_Query(
+				[
+					'post_type'      => 'tapor_tool',
+					'post_status'    => 'publish',
+					'meta_query'     => [
+						array(
+							'key'   => $meta_key,
+							'value' => $value,
+						),
+					],
+					'posts_per_page' => 1,
+				]
+			);
 
 			if ( ! empty( $posts->posts ) ) {
 				$tool = $posts->posts[0];
@@ -545,38 +588,38 @@ function tapor_get_tool( $by, $value ) {
  *
  * @since 1.0.0
  *
- * @param int $tool_id      Local ID of the tool.
- * @param int $tool_node_id Optional. DiRT tool node. Used if $tool_id is not present (ie it's not yet a local tool).
+ * @param int $tool_id       Local ID of the tool.
+ * @param int $tool_tapor_id Optional. TAPoR tool node. Used if $tool_id is not present (ie it's not yet a local tool).
  * @return string
  */
-function tapor_get_action_checkbox( $tool_id, $tool_node_id = '' ) {
+function tapor_get_action_checkbox( $tool_id, $tool_tapor_id = '' ) {
 	$url_base = bp_get_requested_url();
 	if ( is_user_logged_in() ) {
 		$my_tools = tapor_get_tools_of_user( get_current_user_id() );
 
-		if ( ! $tool_node_id ) {
-			$tool_node_id = get_post_meta( $tool_id, 'dirt_node_id', true );
+		if ( ! $tool_tapor_id ) {
+			$tool_tapor_id = get_post_meta( $tool_id, 'tapor_id', true );
 		}
 
 		if ( in_array( $tool_id, wp_list_pluck( $my_tools, 'ID' ) ) ) {
-			$url_base = add_query_arg( 'remove_dirt_tool', $tool_node_id );
+			$url_base = add_query_arg( 'remove_dirt_tool', $tool_tapor_id );
 			$button = sprintf(
-				'<div class="tapor-tool-action dirt-tool-action-remove"><label for="tapor-tool-remove-%1$d" class="tapor-tool-action-label"><a href="%2$s">' . __( 'I use this', 'tapor-client' ) . '</a></label> <input checked="checked" type="checkbox" value="%d" name="tapor-tool-remove[%1$d]" id="tapor-tool-remove-%1$d" data-tool-id="%1$d" data-tool-node-id="%5$d" data-nonce="%4$s"><span class="tapor-tool-action-question tapor-tool-action-question-remove">%3$s</span></div>',
+				'<div class="tapor-tool-action dirt-tool-action-remove"><label for="tapor-tool-remove-%1$d" class="tapor-tool-action-label"><a href="%2$s">' . __( 'I use this', 'tapor-client' ) . '</a></label> <input checked="checked" type="checkbox" value="%d" name="tapor-tool-remove[%1$d]" id="tapor-tool-remove-%1$d" data-tool-id="%1$d" data-tapor-id="%5$d" data-nonce="%4$s"><span class="tapor-tool-action-question tapor-tool-action-question-remove">%3$s</span></div>',
 				$tool_id,
 				wp_nonce_url( $url_base, 'tapor_remove_tool' ),
 				__( 'Click to remove this tool from your list', 'tapor-client' ),
-				wp_create_nonce( 'tapor_toggle_tool_' . $tool_node_id ),
-				$tool_node_id
+				wp_create_nonce( 'tapor_toggle_tool_' . $tool_tapor_id ),
+				$tool_tapor_id
 			);
 		} else {
-			$url_base = add_query_arg( 'add_dirt_tool', $tool_node_id );
+			$url_base = add_query_arg( 'add_dirt_tool', $tool_tapor_id );
 			$button = sprintf(
-				'<div class="tapor-tool-action tapor-tool-action-add"><label for="tapor-tool-add-%1$d" class="tapor-tool-action-label"><a href="%2$s">' . __( 'I use this', 'tapor-client' ) . '</a></label> <input type="checkbox" value="%d" name="tapor-tool-add[%1$d]" id="tapor-tool-add-%1$d" data-tool-id="%1$d" data-tool-node-id="%5$d" data-nonce="%4$s"><span class="tapor-tool-action-question tapor-tool-action-question-add">%3$s</span></div>',
+				'<div class="tapor-tool-action tapor-tool-action-add"><label for="tapor-tool-add-%1$d" class="tapor-tool-action-label"><a href="%2$s">' . __( 'I use this', 'tapor-client' ) . '</a></label> <input type="checkbox" value="%d" name="tapor-tool-add[%1$d]" id="tapor-tool-add-%1$d" data-tool-id="%1$d" data-tapor-id="%5$d" data-nonce="%4$s"><span class="tapor-tool-action-question tapor-tool-action-question-add">%3$s</span></div>',
 				$tool_id,
 				wp_nonce_url( $url_base, 'tapor_add_tool' ),
 				__( 'Click to show that you use this tool', 'tapor-client' ),
-				wp_create_nonce( 'tapor_toggle_tool_' . $tool_node_id ),
-				$tool_node_id
+				wp_create_nonce( 'tapor_toggle_tool_' . $tool_tapor_id ),
+				$tool_tapor_id
 			);
 		}
 	}

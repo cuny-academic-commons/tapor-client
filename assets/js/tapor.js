@@ -71,11 +71,11 @@ window.wp = window.wp || {};
 
 				$.ajax( {
 					url: ajaxurl,
-					method: 'GET',
+					method: 'POST',
 					data: {
 						'tool_id': tool_id,
 						'action': 'tapor_tool_use_toggle',
-						'tool_node_id': $current_checkbox.data( 'tool-node-id' ),
+						'tapor_id': $current_checkbox.data( 'tapor-id' ),
 						'nonce': $current_checkbox.data( 'nonce' ),
 						'toggle': checked ? 'remove' : 'add'
 					},
@@ -83,10 +83,10 @@ window.wp = window.wp || {};
 						if ( response.success ) {
 							if ( 'add' == response.data.toggle ) {
 								$current_checkbox.prop( 'checked', true );
-								$current_checkbox.closest( '.tapor-tool-action' ).find( '.tapor-tool-action-question' ).html( DDC.remove_gloss );
+								$current_checkbox.closest( '.tapor-tool-action' ).find( '.tapor-tool-action-question' ).html( TAPoR.remove_gloss );
 							} else {
 								$current_checkbox.removeProp( 'checked' );
-								$current_checkbox.closest( '.tapor-tool-action' ).find( '.tapor-tool-action-question' ).html( DDC.add_gloss );
+								$current_checkbox.closest( '.tapor-tool-action' ).find( '.tapor-tool-action-question' ).html( TAPoR.add_gloss );
 							}
 						}
 

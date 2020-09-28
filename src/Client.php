@@ -145,15 +145,15 @@ class Client {
 	}
 
 	/**
-	 * Get an item by node ID.
+	 * Get an item by TAPoR tool ID.
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param int $node_id ID of the node.
+	 * @param int $id ID of the tool on TAPoR.
 	 * @return mixed
 	 */
-	public function get_item_by_node_id( $node_id ) {
-		return $this->set_endpoint( 'node/' . $node_id . '.json' )->request();
+	public function get_item_by_id( $id ) {
+		return $this->set_endpoint( 'tools/' . $id )->request();
 	}
 
 	/**

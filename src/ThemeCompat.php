@@ -10,7 +10,14 @@ namespace CAC\TAPoR;
  * @since 1.0.0
  */
 class ThemeCompat {
-	public static function init() {
+	/**
+	 * Constructor.
+	 *
+	 * @since 1.0.0
+	 */
+	private function __construct() {}
+
+	public static function get_instance() {
 		static $instance;
 
 		if ( empty( $instance ) ) {
@@ -21,13 +28,11 @@ class ThemeCompat {
 	}
 
 	/**
-	 * Constructor.
-	 *
-	 * Hooks into WP at 'bp_setup_theme_compat'.
+	 * Set up hooks.
 	 *
 	 * @since 1.0.0
 	 */
-	private function __construct() {
+	public function set_up_hooks() {
 		add_action( 'bp_setup_theme_compat', [ $this, 'set_up_theme_compat' ] );
 		add_filter( 'template_include', [ $this, 'template_include' ], 0 );
 		add_filter( 'template_include', [ $this, 'template_include_2' ], 999 );
@@ -35,7 +40,7 @@ class ThemeCompat {
 	}
 
 	/**
-	 * Add appropriate hooks if we determine that we're on a DDC page that requires theme compat.
+	 * Add appropriate hooks if we determine that we're on a Tool page that requires theme compat.
 	 *
 	 * @since 1.0.0
 	 */

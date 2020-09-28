@@ -3,7 +3,9 @@
 namespace CAC\TAPoR;
 
 class Schema {
-	public static function init() {
+	private function __construct() {}
+
+	public static function get_instance() {
 		static $instance;
 
 		if ( empty( $instance ) ) {
@@ -13,7 +15,7 @@ class Schema {
 		return $instance;
 	}
 
-	private function __construct() {
+	public function set_up_hooks() {
 		add_action( 'init', [ __CLASS__, 'register_post_type' ] );
 		add_action( 'init', [ __CLASS__, 'register_taxonomies' ], 15 );
 	}

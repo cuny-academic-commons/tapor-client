@@ -5,6 +5,10 @@ namespace CAC\TAPoR;
 class App {
 	protected static $post_type = 'tapor_tool';
 
+	public $schema;
+	public $theme_compat;
+	public $user_integration;
+
 	/**
 	 * Constructor.
 	 *
@@ -26,11 +30,17 @@ class App {
 		return $instance;
 	}
 
-	public static function init() {
+	public function init() {
 		require TAPOR_PLUGIN_DIR . '/includes/functions.php';
 
-		Schema::init();
-		ThemeCompat::init();
+		$this->schema = Schema::get_instance();
+		$this->schema->set_up_hooks();
+
+		$this->theme_compat = ThemeCompat::get_instance();
+		$this->theme_compat->set_up_hooks();
+
+		$this->user_integration = UserIntegration::get_instance();
+		$this->user_integration->set_up_hooks();
 
 		return;
 		// Initialize Gutenberg integration.
