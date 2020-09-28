@@ -54,6 +54,11 @@ class App {
 			$this->bp_groups_integration = BuddyPress\GroupIntegration::get_instance();
 			$this->bp_groups_integration->set_up_hooks();
 		}
+
+		if ( bp_is_active( 'activity' ) ) {
+			$this->bp_activity_integration = BuddyPress\ActivityIntegration::get_instance();
+			$this->bp_activity_integration->set_up_hooks();
+		}
 	}
 
 	public function get_client() {
