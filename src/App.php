@@ -50,6 +50,9 @@ class App {
 	}
 
 	public function init_bp() {
+		$this->bp_members_integration = BuddyPress\MembersIntegration::get_instance();
+		$this->bp_members_integration->set_up_hooks();
+
 		if ( bp_is_active( 'groups' ) ) {
 			$this->bp_groups_integration = BuddyPress\GroupIntegration::get_instance();
 			$this->bp_groups_integration->set_up_hooks();

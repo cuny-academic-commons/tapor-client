@@ -535,68 +535,6 @@ function tapor_tool_markup( $tool_data ) {
 }
 
 /**
- * Fetch a Tool object.
- *
- * @since 1.0.0
- *
- * @param string $by Field to query by. 'tapor_id', 'link', 'title'.
- * @param int|string $value Value to query by.
- * @return null|Tool
- */
-function tapor_get_tool( $by, $value ) {
-	$tool = null;
-
-	switch ( $by ) {
-		case 'tapor_id' :
-//			$tool =
-		break;
-	}
-
-	switch ( $by ) {
-		// Postmeta
-		case 'tapor_id' :
-		case 'link' :
-			$meta_key = $by;
-			if ( 'link' === $meta_key ) {
-				$meta_key = 'tapor_link';
-			}
-
-			$posts = new WP_Query(
-				[
-					'post_type'      => 'tapor_tool',
-					'post_status'    => 'publish',
-					'meta_query'     => [
-						array(
-							'key'   => $meta_key,
-							'value' => $value,
-						),
-					],
-					'posts_per_page' => 1,
-				]
-			);
-
-			if ( ! empty( $posts->posts ) ) {
-				$tool = $posts->posts[0];
-			}
-
-			break;
-
-		case 'title' :
-			// No way to do this in the API
-			global $wpdb;
-			$post_id = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'tapor_tool' AND post_status = 'publish' AND post_title = %s LIMIT 1", $value ) );
-
-			if ( $post_id ) {
-				$tool = get_post( $post_id );
-			}
-
-			break;
-	}
-
-	return $tool;
-}
-
-/**
  * Get the action checkbox markup for a tool (I use this).
  *
  * @since 1.0.0

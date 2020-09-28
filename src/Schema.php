@@ -36,11 +36,11 @@ class Schema {
 		register_post_type(
 			self::post_type(),
 			[
-				'label'  => __( 'TAPoR Tools', 'tapor-client' ),
-				'public' => true,
+				'label'       => __( 'TAPoR Tools', 'tapor-client' ),
+				'public'      => true,
 				'has_archive' => true,
-				'rewrite' => array(
-					'slug' => _x( 'tool', 'Tool rewrite slug', 'dirt-directory-client' ),
+				'rewrite'     => array(
+					'slug'       => _x( 'tool', 'Tool rewrite slug', 'tapor-client' ),
 					'with_front' => false,
 				),
 			]
