@@ -215,6 +215,6 @@ class Client {
 	 * @return mixed
 	 */
 	public function get_items_by_search_term( $search_term ) {
-		return $this->set_endpoint( 'search_node/retrieve.json' )->add_query_var( 'keys', $search_term )->request();
+		return $this->set_endpoint( 'tools' )->add_query_var( 'query', $search_term )->request();
 	}
 }
