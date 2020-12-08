@@ -169,6 +169,10 @@ class Component extends BP_Component {
 	 * @param array $wp_admin_nav See BP_Component::setup_admin_bar() for a description.
 	 */
 	public function setup_admin_bar( $wp_admin_nav = array() ) {
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
 		if ( ! $this->user_has_tools( bp_loggedin_user_id() ) ) {
 			return;
 		}
