@@ -8,6 +8,7 @@ class App {
 	public $schema;
 	public $theme_compat;
 	public $user_integration;
+	public $bp_members_integration;
 	public $bp_groups_integration;
 	public $bp_activity_integration;
 
